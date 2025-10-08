@@ -1,0 +1,14 @@
+{
+  "devices": {
+    "general": [
+      "wearable"
+    ]
+  },
+  "development": {
+    "addedSysCaps": [
+      "SystemCapability.ArkUI.ArkUI.Lite",
+      "SystemCapability.ArkUI.ArkUI.Circle"
+
+    ]
+  }
+}
