@@ -5,6 +5,7 @@
 The PeekAndGuess app is a casual wearable game where players select a category (Animal, Food, or City), uncover tiles from a hidden image, and try to guess the correct answer with the help of haptic and audio feedback; it provides quick entertainment in short sessions, demonstrates cognitive engagement, and showcases HarmonyOS capabilities for multimedia, interaction, and smooth user experience on smartwatches.
 
 # Preview
+
 <div>
     <img src="screenshots/sm1.png" width="24%" />
     <img src="screenshots/sm2.png" width="24%" />
@@ -18,8 +19,6 @@ The PeekAndGuess app is a casual wearable game where players select a category (
 - **Cognitive Engagement**: Enhance pattern recognition, memory, and decision-making by revealing minimal tiles before guessing.
 - **Wearable Interaction Demo**: Demonstrates HarmonyOS integration of haptics, audio feedback, and touch interactions in a simple game scenario.
 
-
-
 # Technology
 
 ## Stack
@@ -31,11 +30,10 @@ The PeekAndGuess app is a casual wearable game where players select a category (
 - Audio Kit 
 - AbilityKit & Router
 - ArkUI Kit
+
 ## Required Permissions
 - `ohos.permission.VIBRATE`
 - `ohos.permission.ACTIVITY_MOTION`
-
-
 
 # Directory Structure
 ```
@@ -62,7 +60,6 @@ PeekAndGuess/
 
 ## Supported Device
 - Huawei Watch 5
-
 
 # License
 

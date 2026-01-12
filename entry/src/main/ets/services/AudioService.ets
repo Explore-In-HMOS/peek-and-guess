@@ -16,7 +16,7 @@ export class AudioService {
     ['correct',   'correct.mp3'],
     ['wrong',     'wrong.mp3'],
     ['congrats',  'congrats.mp3'],
-    ['game_over', 'game_over.mp3'],
+    ['game_over', 'game_over.mp3']
   ]);
 
   static init(rm: resourceManager.ResourceManager): void {
@@ -29,7 +29,9 @@ export class AudioService {
 
   private static async createPlayerFromRaw(rawName: string): Promise<media.AVPlayer> {
     const rm = AudioService.rm;
-    if (!rm) throw new Error('ResourceManager not set. Call AudioService.init(...) first.');
+    if (!rm) {
+      throw new Error('ResourceManager not set. Call AudioService.init(...) first.');
+    }
 
     const player: AVPlayerWithFD = await media.createAVPlayer() as AVPlayerWithFD;
 
@@ -62,7 +64,9 @@ export class AudioService {
   }
 
   static async play(kind: SfxKind): Promise<void> {
-    if (!AudioService.rm) return;
+    if (!AudioService.rm) {
+      return;
+    }
 
     let player = AudioService.players.get(kind);
     if (!player) {

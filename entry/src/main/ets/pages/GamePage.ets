@@ -1,13 +1,14 @@
 // GamePage.ets
-import router from '@ohos.router';
 import HapticsService from '../services/HapticsService';
 import AudioService from '../services/AudioService';
 import common from '@ohos.app.ability.common';
+import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { secureRandomInt } from '../utils/SecureRandom';
 
 enum Category {
   Animal = 'Animal',
   Food   = 'Food',
-  City   = 'City',
+  City   = 'City'
 }
 
 interface GameParams {
@@ -19,9 +20,20 @@ interface PickResult<T> {
   index: number;
 }
 
-@Entry
+@Builder
+export function GamePageBuilder() {
+  GamePage()
+}
+export default class EntryAbility extends UIAbility {
+  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    globalThis.abilityContext = this.context;
+  }
+}
+
 @Component
 struct GamePage {
+  pageInfos: NavPathStack = new NavPathStack()
+
   // grid helpers
   @State private nums: string[] = ['0', '1', '2'];
 
@@ -35,17 +47,10 @@ struct GamePage {
   // chosen content
   @State private chosenImage: Resource | null = null;
   @State private chosenIndex: number = 0;
+  @State private category: Category = Category.Animal;
 
   private audioReady: boolean = false;
-
-  private readonly category: Category = (() => {
-    const p = router.getParams() as GameParams | undefined;
-    const raw = (p?.category ?? '').toString();
-    if (raw === Category.Animal || raw === Category.Food || raw === Category.City) {
-      return raw as Category;
-    }
-    return Category.Animal;
-  })();
+  uiContext: UIContext = this.getUIContext()
 
   private readonly images: Map<Category, Resource[]> = new Map<Category, Resource[]>([
     [Category.Animal, [
@@ -62,13 +67,13 @@ struct GamePage {
       $r('app.media.paris'),
       $r('app.media.kyoto'),
       $r('app.media.philly')
-    ]],
+    ]]
   ]);
 
   private readonly labels: Map<Category, string[]> = new Map<Category, string[]>([
     [Category.Animal, ['lion', 'tiger', 'elephant']],
     [Category.Food,   ['pizza', 'sushi', 'burger']],
-    [Category.City,   ['paris', 'kyoto', 'philly']],
+    [Category.City,   ['paris', 'kyoto', 'philly']]
   ]);
 
   private getAt<T>(arr: T[], idx: number): T {
@@ -77,7 +82,7 @@ struct GamePage {
 
   private pickRandom<T>(arr: T[]): PickResult<T> {
     const len: number = arr.length;
-    const idx: number = Math.floor(Math.random() * len);
+    const idx: number = secureRandomInt(0, len);
     const val: T = this.getAt(arr, idx);
     return { value: val, index: idx };
   }
@@ -100,7 +105,7 @@ struct GamePage {
     // init audio once
     if (!this.audioReady) {
       try {
-        const ctx = getContext(this) as common.UIAbilityContext;
+        const ctx = globalThis.abilityContext as common.UIAbilityContext;
         const rm = ctx.resourceManager;
         AudioService.init(rm);
         this.audioReady = true;
@@ -134,7 +139,7 @@ struct GamePage {
     .borderRadius(0)
     .opacity(this.revealed[i] ? 0 : 1)
     .onClick(() => {
-      animateTo({ duration: 200 }, () => this.revealTile(i));
+      this.uiContext.animateTo({ duration: 200 }, () => this.revealTile(i))
     });
   }
 
@@ -142,7 +147,6 @@ struct GamePage {
     const labelPool: string[] = this.labels.get(this.category) ?? [];
     const expected: string = (this.getAt(labelPool, this.chosenIndex) ?? '').toLowerCase();
     const user: string = (this.guessText || '').trim().toLowerCase();
-
     this.showGuess = false;
 
     if (user && user === expected) {
@@ -166,224 +170,231 @@ struct GamePage {
   }
 
   build() {
-    Stack() {
-      Column() {
-        // Header
+    NavDestination() {
+      Stack() {
         Column() {
-          Image($r('app.media.arrow_left'))
-            .width(20).height(20)
-            .fillColor(Color.White)
-            .onClick(() => router.back())
-            .margin({ bottom: 5 })
-            .alignSelf(ItemAlign.Center)
-
-          Text(this.category)
-            .fontSize(22)
-            .fontWeight(FontWeight.Bold)
-            .textAlign(TextAlign.Center)
-            .width('100%')
-        }
-        .width('100%')
-        .alignItems(HorizontalAlign.Center)
-
-        // Puzzle area
-        Stack() {
-          if (this.chosenImage) {
-            Image(this.chosenImage)
-              .width('60%')
-              .height('60%')
-              .objectFit(ImageFit.Cover)
+          // Header
+          Column() {
+            Image($r('app.media.arrow_left'))
+              .width(20).height(20)
+              .fillColor(Color.White)
+              .onClick(() => {
+                this.pageInfos.pop();
+              })
+              .margin({ bottom: 5 })
+              .alignSelf(ItemAlign.Center)
+            Text(this.category)
+              .fontSize(22)
+              .fontWeight(FontWeight.Bold)
+              .textAlign(TextAlign.Center)
+              .width('100%')
           }
-
-          Grid() {
-            ForEach(this.nums, (_r: string, rIdx?: number) => {
-              ForEach(this.nums, (_c: string, cIdx?: number) => {
-                this.Tile(this.getIndex(rIdx, cIdx));
-              }, (_c2: string, cIdx2?: number) => `r${rIdx}-c${cIdx2}`)
-            }, (_r2: string, rIdx2?: number) => `r${rIdx2}`)
+          .width('100%')
+          .alignItems(HorizontalAlign.Center)
+          // Puzzle area
+          Stack() {
+            if (this.chosenImage) {
+              Image(this.chosenImage)
+                .width('60%')
+                .height('60%')
+                .objectFit(ImageFit.Cover)
+            }
+            Grid() {
+              ForEach(this.nums, (row: string, rowIdx?: number) => {
+                ForEach(this.nums, (_c: string, cIdx?: number) => {
+                  this.Tile(this.getIndex(rowIdx, cIdx));
+                }, (_column: string, cIdx2?: number) => _column)
+              }, (_row: string, rIdx2?: number) => _row)
+            }
+            .columnsTemplate('1fr 1fr 1fr')
+            .rowsTemplate('1fr 1fr 1fr')
+            .width('60%')
+            .height('60%')
           }
-          .columnsTemplate('1fr 1fr 1fr')
-          .rowsTemplate('1fr 1fr 1fr')
-          .width('60%')
-          .height('60%')
-        }
-
-        Row({ space: 10 }) {
-          Button("Guess")
-            .fontSize(8)
-            .backgroundColor(0x007AFF)
-            .fontColor(Color.White)
-            .width(60)
-            .height(16)
-            .borderRadius(4)
-            .onClick(() => {
-              this.showGuess = true;
-              void HapticsService.tick();
-            })
-
-          Button("Reveal")
-            .fontSize(8)
-            .backgroundColor(0x34C759)
-            .fontColor(Color.White)
-            .width(60)
-            .height(16)
-            .borderRadius(4)
-            .onClick(() => this.revealAllTiles())
-        }
-        .justifyContent(FlexAlign.Center)
-        .width('100%')
-        .padding({ bottom: 10 })
-      }
-      .width('100%')
-
-      // Guess input overlay
-      if (this.showGuess) {
-        Column() { }
-        .width('100%')
-        .height('100%')
-        .backgroundColor(0x80000000)
-
-        Column() {
-          Text('Type your guess')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .textAlign(TextAlign.Center)
-            .fontColor(Color.Black)
-            .width('100%')
-            .margin({ bottom: 8 })
-
-          TextInput({ placeholder: 'e.g., lion / sushi / paris' })
-            .width('100%')
-            .height(30)
-            .border({ width: 1, color: 0xCCCCCC })
-            .padding(3)
-            .fontColor(Color.Black)
-            .onChange((v: string) => { this.guessText = v; })
-
-          Row({ space: 8 }) {
-            Button('Submit')
-              .fontSize(10)
-              .width(70)
-              .height(22)
-              .borderRadius(12)
+          Row({ space: 10 }) {
+            Button('Guess')
+              .fontSize(8)
               .backgroundColor(0x007AFF)
               .fontColor(Color.White)
-              .onClick(() => this.submitGuess())
+              .width(60)
+              .height(16)
+              .borderRadius(4)
+              .onClick(() => {
+                this.showGuess = true;
+                void HapticsService.tick();
+              })
+            Button('Reveal')
+              .fontSize(8)
+              .backgroundColor(0x34C759)
+              .fontColor(Color.White)
+              .width(60)
+              .height(16)
+              .borderRadius(4)
+              .onClick(() => this.revealAllTiles())
+          }
+          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .padding({ bottom: 10 })
+        }
+        .width('100%')
+        // Guess input overlay
+        if (this.showGuess) {
+          Column() { }
+          .width('100%')
+          .height('100%')
+          .backgroundColor(0x80000000)
+          Column() {
+            Text('Type your guess')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .textAlign(TextAlign.Center)
+              .fontColor(Color.Black)
+              .width('100%')
+              .margin({ bottom: 8 })
+            TextInput({ placeholder: 'e.g., lion / sushi / paris' })
+              .width('100%')
+              .height(30)
+              .border({ width: 1, color: 0xCCCCCC })
+              .padding(3)
+              .fontColor(Color.Black)
+              .onChange((v: string) => { this.guessText = v; })
+            Row({ space: 8 }) {
+              Button('Submit')
+                .fontSize(10)
+                .width(70)
+                .height(22)
+                .borderRadius(12)
+                .backgroundColor(0x007AFF)
+                .fontColor(Color.White)
+                .onClick(() => this.submitGuess())
+              Button('Cancel')
+                .fontSize(10)
+                .width(70)
+                .height(22)
+                .borderRadius(12)
+                .backgroundColor(0xAAAAAA)
+                .fontColor(Color.White)
+                .onClick(() => {
+                  this.showGuess = false;
+                  this.guessText = '';
+                  void HapticsService.tick();
+                })
+            }
+            .justifyContent(FlexAlign.SpaceBetween)
+            .margin({ top: 15 })
+          }
+          .width(180)
+          .height(120)
+          .padding(12)
+          .backgroundColor(Color.White)
+          .borderRadius(10)
+          .alignSelf(ItemAlign.Center)
+        }
+        // Win overlay
+        if (this.showWin) {
+          Column() { }
+          .width('100%')
+          .height('100%')
+          .backgroundColor(0x80000000)
+          Column() {
+            Text('You Win!')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .textAlign(TextAlign.Center)
+              .fontColor(Color.Green)
+              .width('100%')
 
-            Button('Cancel')
+            Button('Next round')
               .fontSize(10)
-              .width(70)
+              .width(100)
               .height(22)
-              .borderRadius(12)
-              .backgroundColor(0xAAAAAA)
+              .borderRadius(14)
+              .margin({ top: 12 })
+              .backgroundColor(0x34C759)
+              .fontColor(Color.White)
+              .onClick(() => this.startNewRound())
+
+            Button('Back to categories')
+              .fontSize(10)
+              .width(120)
+              .height(22)
+              .borderRadius(14)
+              .margin({ top: 6 })
+              .backgroundColor(0x007AFF)
               .fontColor(Color.White)
               .onClick(() => {
-                this.showGuess = false;
-                this.guessText = '';
+                this.pageInfos.pop();
+              })
+          }
+          .width(180)
+          .height(120)
+          .padding(16)
+          .backgroundColor(Color.White)
+          .borderRadius(10)
+          .alignSelf(ItemAlign.Center)
+        }
+        // Game-over overlay
+        if (this.gameOver && !this.showWin) {
+          Column() { }
+          .width('100%')
+          .height('100%')
+          .backgroundColor(0x80000000)
+
+          Column() {
+            Text('Game Over!')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.Red)
+              .textAlign(TextAlign.Center)
+              .width('100%')
+
+            Button('Play again')
+              .fontSize(10)
+              .width(100)
+              .height(22)
+              .borderRadius(14)
+              .fontColor(Color.White)
+              .backgroundColor(0x34C759)
+              .margin({ top: 12 })
+              .onClick(() => this.startNewRound())
+
+            Button('Close')
+              .fontSize(10)
+              .width(85)
+              .height(22)
+              .borderRadius(14)
+              .margin({ top: 6 })
+              .backgroundColor(0x007AFF)
+              .fontColor(Color.White)
+              .onClick(() => {
+                this.gameOver = false;
                 void HapticsService.tick();
               })
           }
-          .justifyContent(FlexAlign.SpaceBetween)
-          .margin({ top: 15 })
+          .width(180)
+          .height(120)
+          .padding(16)
+          .backgroundColor(Color.White)
+          .borderRadius(10)
+          .alignSelf(ItemAlign.Center)
         }
-        .width(180)
-        .height(120)
-        .padding(12)
-        .backgroundColor(Color.White)
-        .borderRadius(10)
-        .alignSelf(ItemAlign.Center)
       }
-
-      // Win overlay
-      if (this.showWin) {
-        Column() { }
-        .width('100%')
-        .height('100%')
-        .backgroundColor(0x80000000)
-
-        Column() {
-          Text('You Win!')
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .textAlign(TextAlign.Center)
-            .fontColor(Color.Green)
-            .width('100%')
-
-          Button('Next round')
-            .fontSize(10)
-            .width(100)
-            .height(22)
-            .borderRadius(14)
-            .margin({ top: 12 })
-            .backgroundColor(0x34C759)
-            .fontColor(Color.White)
-            .onClick(() => this.startNewRound())
-
-          Button('Back to categories')
-            .fontSize(10)
-            .width(120)
-            .height(22)
-            .borderRadius(14)
-            .margin({ top: 6 })
-            .backgroundColor(0x007AFF)
-            .fontColor(Color.White)
-            .onClick(() => router.replaceUrl({ url: 'pages/CategoryPage' }))
-        }
-        .width(180)
-        .height(120)
-        .padding(16)
-        .backgroundColor(Color.White)
-        .borderRadius(10)
-        .alignSelf(ItemAlign.Center)
-      }
-
-      // Game-over overlay
-      if (this.gameOver && !this.showWin) {
-        Column() { }
-        .width('100%')
-        .height('100%')
-        .backgroundColor(0x80000000)
-
-        Column() {
-          Text('Game Over!')
-            .fontSize(15)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Color.Red)
-            .textAlign(TextAlign.Center)
-            .width('100%')
-
-          Button('Play again')
-            .fontSize(10)
-            .width(100)
-            .height(22)
-            .borderRadius(14)
-            .fontColor(Color.White)
-            .backgroundColor(0x34C759)
-            .margin({ top: 12 })
-            .onClick(() => this.startNewRound())
-
-          Button('Close')
-            .fontSize(10)
-            .width(85)
-            .height(22)
-            .borderRadius(14)
-            .margin({ top: 6 })
-            .backgroundColor(0x007AFF)
-            .fontColor(Color.White)
-            .onClick(() => {
-              this.gameOver = false;
-              void HapticsService.tick();
-            })
-        }
-        .width(180)
-        .height(120)
-        .padding(16)
-        .backgroundColor(Color.White)
-        .borderRadius(10)
-        .alignSelf(ItemAlign.Center)
-      }
+      .width('100%')
+      .height('100%')
     }
-    .width('100%')
-    .height('100%')
+    .hideTitleBar(true)
+    .onReady((context: NavDestinationContext) => {
+      this.pageInfos = context.pathStack;
+      // Get category from params
+      const params = context.pathInfo.param as GameParams;
+      const raw = (params?.category ?? '').toString();
+      if (raw === Category.Animal || raw === Category.Food || raw === Category.City) {
+        this.category = raw as Category;
+      }
+    })
+    .onBackPressed(() => {
+      this.pageInfos.pop();
+      return true;
+    })
   }
 }
